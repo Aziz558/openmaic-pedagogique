@@ -1,0 +1,77 @@
+# Blueprint Render — déploiement en un clic depuis GitHub.
+# Docs : https://render.com/docs/blueprint-spec
+#
+# ⚠️ AVERTISSEMENT HONNÊTE, À LIRE AVANT DE CRÉER LE SERVICE
+#    Le palier Free de Render = 512 Mo de RAM, et le BUILD tourne sur cette même
+#    machine. Or ce projet compile Next.js APRÈS avoir construit 9 packages
+#    workspace (postinstall -> build:packages). C'est exactement la raison pour
+#    laquelle le build local n'a jamais pu aboutir sur cette machine.
+#    => Si le build échoue en "JavaScript heap out of memory" ou en OOM 137,
+#       ce n'est PAS un bug du projet : c'est la limite du palier gratuit.
+#       Deux solutions :Render Starter (7 $/mois, toujours 512 Mo : peu d'aide),
+#       ou le build Vercel Hobby (gratuit, plus de mémoire).
+#
+services:
+  - type: web
+    name: openmaic-aziz
+    runtime: node
+    plan: free
+    region: frankfurt # Europe : latence plus faible depuis le Maroc/France
+    branch: main
+    # pnpm install lance aussi le postinstall, qui compile les 9 packages
+    # workspace (mathml2omml, pptxgenjs, dsl, generation, storage, importer,
+    # renderer, editor) : c'est la partie la plus lourde du build.
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+    envVars:
+      # --- Runtime ---
+      - key: NODE_VERSION
+        value: 22.19.0 # package.json -> engines.node : ">=22.19.0"
+      - key: NODE_ENV
+        value: production
+      # Force V8 à ramasser la mémoire avant que le conteneur se fasse tuer
+      # (512 Mo). Peut sauver un build limite ; peut aussi le faire échouer
+      # plus tot avec un message explicite. À retirer si le build passe.
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=400
+
+      # --- Secrets : saisis dans le dashboard Render, JAMAIS ici ---
+      - key: ACCESS_CODE
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+
+      # --- Modeles (mesures du 2026-09-29, voir TUTORIEL-FR.md) ---
+      - key: DEFAULT_MODEL
+        value: groq:openai/gpt-oss-120b
+      - key: MODEL_FALLBACK
+        value: google:gemini-3.6-flash
+
+      # --- Cout : tout ce qui peut facturer est coupe ---
+      - key: IMAGE_ENABLED
+        value: "false"
+      - key: VIDEO_ENABLED
+        value: "false"
+      # --- Persistance : Neon (PostgreSQL gratuit) ---
+      # Render Free n a PAS de disque persistant : ./data est efface a chaque
+      # redeloiement. Neon fournit le stockage durable (cours, documents, assets).
+      #
+      # !! NEON : utilise le endpoint DIRECT, pas le pooled (-pooler).
+      #    Le mode pooled est un pooler transactionnel, et l app se reveille via
+      #    LISTEN/NOTIFY, qui exige une connexion de session. Sur le pooled, le
+      #    canal est silencieusement inerte : l app le detecte et bascule en
+      #    polling (correct mais plus lent). Voir
+      #    lib/server/agent-runtime/event-notify-bus.ts
+      #    Chaine directe :
+      #    postgresql://USER:PASS@ep-xxx.aws.neon.tech/neondb?sslmode=require
+      #
+      # Le schema est cree automatiquement au premier demarrage (ensureSchema,
+      # ensureDocumentSchema, ensureStageMetaSchema, ensureOwnerMaterialSchema).
+      # Aucune migration manuelle.
+      # - key: DATABASE_URL
+      #   sync: false
