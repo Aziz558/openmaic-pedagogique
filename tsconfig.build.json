@@ -11,6 +11,13 @@
     "render-service",
     "tests",
     "eval",
-    "packages/@openmaic/*/test"
+    "packages/@openmaic/*/test",
+    // Operator scripts are run by hand against a configured machine
+    // (model probes, provider sweeps, build tweaks). None of them ship in the
+    // bundle, and tsconfig.json's `**/*.ts` pulled them into the production
+    // typecheck — so a diagnostic helper could block a deploy over a type it
+    // never uses at runtime. They keep the strict check in `pnpm typecheck`
+    // via tsconfig.json; only the deploy-time check skips them.
+    "scripts"
   ]
 }
