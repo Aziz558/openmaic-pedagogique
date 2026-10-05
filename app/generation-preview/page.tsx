@@ -519,6 +519,19 @@ function GenerationPreviewContent() {
         activeSteps = getActiveSteps(currentSession);
       }
 
+// `pdfImages[].src` carries the same base64 payload as `imageMapping`
+      // (see lib/document/pdf-compat.ts, which fills `src: asset.data`). With
+      // the mapping emptied below, leaving `src` in place would ship the very
+      // bytes we just decided not to send — a second, invisible copy of the
+      // document's images inside the same request, which is why a text-only run
+      // still came back 413 after the mapping was dropped.
+      //
+      // The server reads `src` only on the vision path: attachments are built
+      // from `imageMapping`, and `formatImageDescription` works from
+      // id/page/description/dimensions. So a text-only model loses nothing.
+      const pdfImages = getCurrentModelConfig().supportsVision
+        ? currentSession.pdfImages
+        : (currentSession.pdfImages ?? []).map((image) => ({ ...image, src: '' }));
       // Load imageMapping early (needed for both outline and scene generation).
       //
       // Only serialise the images when the selected model can actually read
@@ -593,7 +606,7 @@ function GenerationPreviewContent() {
               withThinkingConfig({
                 requirements: currentSession.requirements,
                 pdfText: currentSession.pdfText,
-                pdfImages: currentSession.pdfImages,
+                pdfImages,
                 imageMapping,
                 researchContext: currentSession.researchContext,
               }),
@@ -1012,7 +1025,7 @@ function GenerationPreviewContent() {
         {
           outline: firstOutline,
           allOutlines: outlines,
-          pdfImages: currentSession.pdfImages,
+          pdfImages,
           imageMapping,
           stageInfo,
           stageId: stage.id,
@@ -1082,7 +1095,7 @@ function GenerationPreviewContent() {
       sessionStorage.setItem(
         'generationParams',
         JSON.stringify({
-          pdfImages: currentSession.pdfImages,
+          pdfImages,
           agents,
           userProfile,
           languageDirective,
