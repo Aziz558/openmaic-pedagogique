@@ -34,6 +34,14 @@ export function getCurrentModelConfig() {
     requiresApiKey: providerConfig?.requiresApiKey,
     isServerConfigured: providerConfig?.isServerConfigured,
     thinkingConfig,
+    /**
+     * Whether this model can read images. Callers use it to decide whether a
+     * document's images have to be serialised at all: base64 costs a third more
+     * than the bytes themselves, and the hosting platform rejects the request
+     * outright once it passes ~4.2 MB. Sending them to a text-only model buys
+     * nothing and can cost the whole generation.
+     */
+    supportsVision: modelInfo?.capabilities?.vision === true,
   };
 }
 

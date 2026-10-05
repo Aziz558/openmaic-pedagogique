@@ -520,8 +520,22 @@ function GenerationPreviewContent() {
       }
 
       // Load imageMapping early (needed for both outline and scene generation).
+      //
+      // Only serialise the images when the selected model can actually read
+      // them. Each one becomes a base64 payload — a third larger than the file —
+      // and the outline request carries all of them, so a document with a few
+      // pages of scans produced a body the host refused outright (413
+      // FUNCTION_PAYLOAD_TOO_LARGE) before the app ever ran. The server already
+      // ignores `imageMapping` for a text-only model (it keys off
+      // `modelInfo.capabilities.vision`), so for one the bytes are pure cost:
+      // the descriptions carried by `pdfImages` are still sent either way.
+      const modelNeedsVision = getCurrentModelConfig().supportsVision;
       let imageMapping: ImageMapping = {};
-      if (currentSession.imageStorageIds && currentSession.imageStorageIds.length > 0) {
+      if (
+        modelNeedsVision &&
+        currentSession.imageStorageIds &&
+        currentSession.imageStorageIds.length > 0
+      ) {
         log.debug('Loading images from IndexedDB');
         imageMapping = await loadImageMapping(currentSession.imageStorageIds);
       } else if (
@@ -530,6 +544,11 @@ function GenerationPreviewContent() {
       ) {
         log.debug('Using imageMapping from session (old format)');
         imageMapping = currentSession.imageMapping;
+      } else if (!modelNeedsVision && currentSession.imageStorageIds?.length) {
+        log.debug(
+          'Skipping image bytes: the selected model does not read images ' +
+            '(they would push the request past the hosting size limit)',
+        );
       }
 
       // Create stage client-side
