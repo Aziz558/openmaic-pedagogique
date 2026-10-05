@@ -106,10 +106,39 @@ function withThinkingConfig<T extends Record<string, unknown>>(body: T): T {
   return thinkingConfig ? ({ ...body, thinkingConfig } as T) : body;
 }
 
+/**
+ * Read a response that is expected to be JSON, without hiding a non-JSON body.
+ *
+ * Vercel answers an over-sized request with a plain-text 413 ("Request Entity
+ * Too Large"), so `response.json()` throws and the fallback used to report only
+ * `statusText`. The UI then showed nothing useful and the user was left with a
+ * bare "Generation failed". Reading the text first keeps the real reason —
+ * including the platform's own message — and names the size ceiling when that is
+ * what happened, because on Vercel the 4.5 MB request limit applies ahead of any
+ * body size the app configures.
+ */
 async function readJsonResponse(response: Response): Promise<Record<string, unknown>> {
-  return response.json().catch(() => ({
-    error: response.statusText || 'Request failed',
-  }));
+  let text: string;
+  try {
+    text = await response.text();
+  } catch {
+    return { error: response.statusText || 'Request failed' };
+  }
+
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    // Not JSON: either the platform rejected the request before Next.js ran,
+    // or a proxy answered in its own format. Surface what it actually said.
+    const snippet = text.trim().slice(0, 300);
+    const hint =
+      response.status === 413
+        ? ` (request too large for this platform — Vercel caps a request body at 4.5 MB; images are sent base64, which adds a third)`
+        : '';
+    return {
+      error: snippet || response.statusText || `HTTP ${response.status} (non-JSON response)${hint}`,
+    };
+  }
 }
 
 function createHttpError(
