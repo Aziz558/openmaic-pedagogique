@@ -45,6 +45,24 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
+// Node runtime, not Edge.
+//
+// Vercel bundles the middleware together with instrumentation.ts, and the boot
+// path reaches lib/server/identity/registry.ts -> anonymous-cookie.ts, which
+// imports `node:crypto`. That module does not exist in the Edge runtime, so
+// the deploy was rejected at the *upload* step with:
+//
+//   The Edge Function "_middleware" is referencing unsupported modules:
+//     - node:crypto
+//
+// The build itself had succeeded (6 min, all 80 routes emitted) — only the
+// Edge bundle was refused. Nothing here benefits from Edge: the app is Node
+// end to end (node-postgres for Neon, node:crypto for HMAC access tokens), so
+// running the gate on Node removes the runtime split and lets it read
+// server-only variables, which the code above already anticipates through
+// `canInspectServerRuntime`.
 export const config = {
+  runtime: 'nodejs',
   matcher: ['/((?!_next/static|_next/image|favicon.ico|logos/).*)'],
 };
+
