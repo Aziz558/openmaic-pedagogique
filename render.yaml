@@ -21,7 +21,10 @@ services:
     # pnpm install lance aussi le postinstall, qui compile les 9 packages
     # workspace (mathml2omml, pptxgenjs, dsl, generation, storage, importer,
     # renderer, editor) : c'est la partie la plus lourde du build.
-    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    # corepack lit le champ `packageManager` de package.json (pnpm@10.28.0) et
+    # l installe : sans ca, l absence de pnpm dans l image fait echouer le
+    # build avant meme de commencer.
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
     startCommand: pnpm start
     healthCheckPath: /api/health
     autoDeploy: true
@@ -36,7 +39,7 @@ services:
       # (512 Mo). Peut sauver un build limite ; peut aussi le faire échouer
       # plus tot avec un message explicite. À retirer si le build passe.
       - key: NODE_OPTIONS
-        value: --max-old-space-size=400
+        value: --max-old-space-size=384
 
       # --- Secrets : saisis dans le dashboard Render, JAMAIS ici ---
       - key: ACCESS_CODE
