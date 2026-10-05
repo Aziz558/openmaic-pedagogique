@@ -24,7 +24,19 @@ services:
     # corepack lit le champ `packageManager` de package.json (pnpm@10.28.0) et
     # l installe : sans ca, l absence de pnpm dans l image fait echouer le
     # build avant meme de commencer.
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    # Le palier Free = 512 Mo. Le build en une seule commande (install +
+    # postinstall 8x tsc + next build) y echoue en SIGABRT (exit 134).
+    # On decoupe donc en etapes separees pour que chaque processus libere son
+    # tas en sortant, au lieu d accumuler :
+    #   1. install SANS scripts (le postinstall est traite a l etape 2)
+    #   2. les 8 packages workspace, un processus chacun
+    #   3. le bundle importer, requis par le garde-fou de next build
+    #   4. next build
+    buildCommand: >-
+      corepack enable &&
+      pnpm install --frozen-lockfile --ignore-scripts &&
+      pnpm run build:packages &&
+      NODE_OPTIONS=--max-old-space-size=420 pnpm exec next build
     startCommand: pnpm start
     healthCheckPath: /api/health
     autoDeploy: true
