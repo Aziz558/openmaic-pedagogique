@@ -1,0 +1,22 @@
+# Fichiers de développement que le build Vercel n'a pas besoin de telecharger.
+# Le .gitignore suffit pour ce qui n'est pas versionne, mais Vercel upload aussi
+# les fichiers ignores par git qui sont presents sur le disque au moment du
+# build local — or c'est le cas de public/vendor/maic-importer, regenere par le
+# postinstall. Sans cet entete, cet artefact de build (~2 Mo) partait en
+# upload pour etre remplace.
+
+.git
+.tmp
+tmp
+dev-server.log
+*.log
+grok-*.log
+tpm-*.log
+long-gen.log
+vitest-*.log
+
+.codegraph
+test-results
+playwright-report
+blob-report
+.playwright
