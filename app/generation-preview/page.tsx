@@ -581,11 +581,32 @@ function GenerationPreviewContent() {
             ),
             signal,
           })
-            .then((res) => {
+            .then(async (res) => {
               if (!res.ok) {
-                return res.json().then((d) => {
-                  reject(new Error(d.error || t('generation.outlineGenerateFailed')));
-                });
+                // A platform-level rejection never reaches Next.js and comes
+                // back as plain text — Vercel answers an over-sized request
+                // with a 413 and an empty or non-JSON body. `res.json()` on
+                // that throws "Unexpected token", which is what surfaced as a
+                // bare "Generation failed" with no usable reason. Read the
+                // body as text and explain the ceiling when it is the size.
+                const raw = await res.text().catch(() => '');
+                let detail = raw.slice(0, 300);
+                try {
+                  const parsed = JSON.parse(raw) as { error?: unknown };
+                  if (typeof parsed?.error === 'string') detail = parsed.error;
+                } catch {
+                  if (!detail) {
+                    detail =
+                      res.status === 413
+                        ? 'Document too large for the hosting platform (Vercel caps a request at 4.5 MB; images are sent base64, which adds a third). Split the PDF or remove images.'
+                        : t('generation.outlineGenerateFailed');
+                  } else if (res.status === 413) {
+                    detail +=
+                      ' — request too large for the hosting platform (Vercel caps a request at 4.5 MB; images are sent base64, which adds a third).';
+                  }
+                }
+                reject(new Error(detail || t('generation.outlineGenerateFailed')));
+                return;
               }
 
               const reader = res.body?.getReader();
