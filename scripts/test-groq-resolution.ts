@@ -18,7 +18,10 @@ async function main() {
   for (const id of cfg!.models!.map((m) => m.id)) {
     const resolved = await resolveModel({ modelString: `groq:${id}` });
     console.log(`\n  > groq:${id}`);
-    console.log('    provider réellement monté :', resolved.model.provider);
+    // `resolved.model` is a LanguageModel, which has no `provider` field in AI
+    // SDK v6. `ResolvedModel` carries `providerId` alongside it, which is what
+    // actually tells us which provider the transport was mounted on.
+    console.log('    provider réellement monté :', resolved.providerId);
 
     const t0 = Date.now();
     const res = await generateText({
