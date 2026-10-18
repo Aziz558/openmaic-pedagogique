@@ -36,6 +36,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSceneGenerator } from '@/lib/hooks/use-scene-generator';
 import { useNarrationAdoption } from '@/lib/audio/use-narration-adoption';
 import { createLogger } from '@/lib/logger';
+import { toast } from 'sonner';
 import { MediaStageProvider } from '@/lib/contexts/media-stage-context';
 import { generateMediaForOutlines } from '@/lib/media/media-orchestrator';
 import { useI18n } from '@/lib/hooks/use-i18n';
@@ -92,6 +93,12 @@ export function ClassroomSurface({
   const { generateRemaining, retrySingleOutline, stop } = useSceneGenerator({
     onComplete: () => {
       log.info('[Classroom] All scenes generated');
+    },
+    onSceneFailed: (outline, error) => {
+      log.warn(`[Classroom] Scene "${outline.title}" failed: ${error}`);
+      toast.error(`Slide "${outline.title}" could not be generated: ${error}`, {
+        description: 'Generation is paused. Use retry on the slide to continue.',
+      });
     },
   });
 

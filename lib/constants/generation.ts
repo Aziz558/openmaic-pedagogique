@@ -4,7 +4,9 @@
  */
 
 // PDF content truncation limit (characters)
-export const MAX_PDF_CONTENT_CHARS = 50000;
+// Sized to hold a full MinerU Markdown extraction (a 62-page course PDF is
+// about 67k characters) so the outline planner sees the whole document.
+export const MAX_PDF_CONTENT_CHARS = 150000;
 
 // Maximum number of images to send as vision content parts
 export const MAX_VISION_IMAGES = 20;

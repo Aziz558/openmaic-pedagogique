@@ -164,6 +164,30 @@ function messageFromError(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
+/**
+ * Per-attempt client timeouts. Each route declares a server `maxDuration`
+ * (scene-content 300s, scene-actions 60s, tts 30s); the client budget sits just
+ * above that so a request that never answers fails visibly instead of blocking
+ * the sequential generation loop forever.
+ */
+const SCENE_CONTENT_TIMEOUT_MS = 280_000;
+const SCENE_ACTIONS_TIMEOUT_MS = 70_000;
+const TTS_REQUEST_TIMEOUT_MS = 45_000;
+
+/** Combine the caller's cancel signal with a per-attempt timeout. */
+function withAttemptTimeout(signal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
+  const timeout = AbortSignal.timeout(timeoutMs);
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
+}
+
+/** Error text for a timed-out attempt; other errors keep their own message. */
+function messageFromTimeoutAware(error: unknown, fallback: string, timeoutMs: number): string {
+  if (error instanceof Error && error.name === 'TimeoutError') {
+    return `${fallback}: no response after ${Math.round(timeoutMs / 1000)}s`;
+  }
+  return messageFromError(error, fallback);
+}
+
 function errorMeta(error: unknown): Pick<SceneContentResult, 'errorCode' | 'statusCode'> {
   if (!error || typeof error !== 'object') return {};
   const record = error as { errorCode?: unknown; statusCode?: unknown };
@@ -201,7 +225,7 @@ export async function fetchSceneContent(
           method: 'POST',
           headers: getApiHeaders(),
           body: JSON.stringify(withThinkingConfig(params)),
-          signal,
+          signal: withAttemptTimeout(signal, SCENE_CONTENT_TIMEOUT_MS),
         });
 
         const data = await readJsonResponse(response);
@@ -222,7 +246,7 @@ export async function fetchSceneContent(
     if (isAbortError(error)) throw error;
     return {
       success: false,
-      error: messageFromError(error, 'Content generation failed'),
+      error: messageFromTimeoutAware(error, 'Content generation failed', SCENE_CONTENT_TIMEOUT_MS),
       ...errorMeta(error),
     };
   }
@@ -250,7 +274,7 @@ export async function fetchSceneActions(
           method: 'POST',
           headers: getApiHeaders(),
           body: JSON.stringify(withThinkingConfig(params)),
-          signal,
+          signal: withAttemptTimeout(signal, SCENE_ACTIONS_TIMEOUT_MS),
         });
 
         const data = await readJsonResponse(response);
@@ -271,7 +295,7 @@ export async function fetchSceneActions(
     if (isAbortError(error)) throw error;
     return {
       success: false,
-      error: messageFromError(error, 'Actions generation failed'),
+      error: messageFromTimeoutAware(error, 'Actions generation failed', SCENE_ACTIONS_TIMEOUT_MS),
       ...errorMeta(error),
     };
   }
@@ -394,6 +418,7 @@ export async function generateAndStoreTTS(
         const response = await fetch('/api/generate/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: withAttemptTimeout(signal, TTS_REQUEST_TIMEOUT_MS),
           body: JSON.stringify({
             text,
             audioId: requestId,
@@ -408,7 +433,6 @@ export async function generateAndStoreTTS(
               ttsProviderConfig?.baseUrl || ttsProviderConfig?.customDefaultBaseUrl || undefined,
             ttsProviderOptions: providerOptions,
           }),
-          signal,
         });
 
         const data = (await readJsonResponse(response)) as TTSApiResponse;
