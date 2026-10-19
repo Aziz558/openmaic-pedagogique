@@ -105,3 +105,5 @@ tmp/
 
 # Demo GIFs (~82 MB) referenced only by README screenshots; not needed to build or run.
 /assets/
+
+.vercel

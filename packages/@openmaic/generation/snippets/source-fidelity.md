@@ -22,6 +22,13 @@ knowledge — is the ground truth for this scene.
 - **Do not moralise or extend.** Do not add warnings, recommendations, legal
   commentary or worked examples that the document does not itself contain.
 
+**Accounting & tax courses (comptabilité, fiscalité, EFRICAS, droit):**
+
+- **Never invent an article number, code, or rate.** If the document cites "CGI art. 123" or a TVA rate of 5,5 %, reproduce it exactly. Do not substitute "LGPD", "IRPP", "IS", or a different rate from memory.
+- **Accounting entries and amounts** must reproduce the document's figures exactly. Do not recompute a balance, amortization, or provision unless the document itself shows the computation.
+- **French terminology**: use the terms exactly as they appear in the source (e.g. "droit d'enregistrement", "TVA", "IS", "IRPP", "amortissement", "provisions", "EFRICAS", "seuil", "abattement"). Do not anglicise or paraphrase them.
+- **Standards references** (IAS, IFRS, PCG, ANC): cite only what the document names, with the exact number given in the document.
+
 **Why this matters**: the learner is studying *their own* document, usually for an
 exam, a revision or a professional certification. A confident invention reads as
 fact to them, is indistinguishable from the real material, and teaches them
