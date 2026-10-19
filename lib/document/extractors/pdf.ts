@@ -59,7 +59,7 @@ function createPdfBackedDocumentExtractor(id: PDFProviderId): DocumentExtractorP
 
       const config = {
         providerId: id,
-        apiKey: input....Key,
+        apiKey: input.config.apiKey,
         baseUrl: input.config.baseUrl,
         accessKeyId: input.config.accessKeyId,
         accessKeySecret: input.config.accessKeySecret,
